@@ -1,6 +1,6 @@
 #!/bin/bash 
 #initialize vars
-LOGFILE=/var/log/clone_volume.log
+LOGFILE=/var/log/clone_volumes.log
 hostname=`hostname | cut -d. -f1`
 DATE_FORMAT="+%b %d %T"
 DT=`date "$DATE_FORMAT"`
@@ -34,6 +34,7 @@ usage(){
 check_volume(){
 	plog "checking volume $1"
 	execute_cmd docker volume inspect $1
+	plog "volume $1 seems OK"
 }
 
 #fun part starts here 
@@ -44,6 +45,8 @@ check_volume $1
 check_volume $2 
 
 plog "Copying data from $1 to $2" 
-execute_cmd docker --rm -it -v $1:/source -v $2:/target alpine sh -c "cd /source ; cp -av . /target"
+execute_cmd docker run --rm -it -v $1:/source -v $2:/target centos sh -c \"cd /source \; cp -av . /target/\"
+#docker run --rm -it -v $1:/source -v $2:/target centos sh -c "cd /source ; cp -av . /target/"
+plog "Data copied sucessfully! Check /var/log/clone_volumes.log for more information" 
 
 
