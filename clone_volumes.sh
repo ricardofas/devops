@@ -46,7 +46,6 @@ check_volume $2
 
 plog "Copying data from $1 to $2" 
 execute_cmd docker run --rm -it -v $1:/source -v $2:/target centos sh -c \"cd /source \; cp -av . /target/\"
-#docker run --rm -it -v $1:/source -v $2:/target centos sh -c "cd /source ; cp -av . /target/"
 plog "Data copied sucessfully! Check /var/log/clone_volumes.log for more information" 
 
 
