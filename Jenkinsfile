@@ -21,6 +21,7 @@ pipeline {
           scmVars = checkout scm
           gitcommit = scmVars.GIT_COMMIT
           echo "Build SHA: $gitcommit"
+          echo "fdsss"
         }
       }
     }
