@@ -18,9 +18,9 @@ pipeline {
       steps {
         deleteDir()  
         script {
-          scmVars = checkout scm
-          gitcommit = scmVars.GIT_COMMIT
-          echo "Build SHA: $gitcommit"
+          //scmVars = checkout scm
+          //gitcommit = scmVars.GIT_COMMIT
+          //echo "Build SHA: $gitcommit"
           echo "fdsssffdfgcvbcbdfdfdg"
         }
       }
