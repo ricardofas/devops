@@ -22,7 +22,7 @@ pipeline {
           //gitcommit = scmVars.GIT_COMMIT
           checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'MessageExclusion', excludedMessage: 'jenkins'], [$class: 'LocalBranch', localBranch: 'master']], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/ricardofas/devops.git']]])
           //echo "Build SHA: $gitcommit"
-          echo "fdsssffdfgcvbcbddfdffdfdg"
+          echo "fdsssffdfgcvbcbddfdfsdfsdffdfdg"
         }
       }
     }
