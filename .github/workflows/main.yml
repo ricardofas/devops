@@ -12,6 +12,6 @@ jobs:
         uses: runforesight/foresight-workflow-kit-action@v1
         if: ${{ always() }}
         with:
-          api_key: ${{ FORESIGHT_APIKEY }}
+          api_key: ${{ secrets.FORESIGHT_APIKEY }}
       - name: avs
         run: uname -a 
