@@ -1,0 +1,15 @@
+name: "Test"
+on:
+  push:
+    branches:
+      - "master"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Make sure you put workflow kit action on top of all the steps 
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: 6d2cd3f0-d8bf-49eb-84e9-85681291d0e1
