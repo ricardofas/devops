@@ -13,3 +13,5 @@ jobs:
         if: ${{ always() }}
         with:
           api_key: 6d2cd3f0-d8bf-49eb-84e9-85681291d0e1
+      - name: avs
+        run: uname -a 
