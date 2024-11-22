@@ -1,5 +1,5 @@
 #!/bin/bash 
-####initialize vars
+#Â####initialize vars
 LOGFILE=/var/log/clone_volumes.log
 hostname=`hostname | cut -d. -f1`
 DATE_FORMAT="+%b %d %T"
