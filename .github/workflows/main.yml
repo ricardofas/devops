@@ -16,4 +16,4 @@ jobs:
       - name: Install GuardDog
         run: pip install guarddog
 
-      - run: guarddog npm scan .
+      - run: guarddog npm scan . --verbose
