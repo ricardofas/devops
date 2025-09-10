@@ -16,10 +16,4 @@ jobs:
       - name: Install GuardDog
         run: pip install guarddog
 
-      - run: guarddog npm scan express --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog.sarif
-
-      - name: Upload SARIF file to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          category: guarddog-builtin
-          sarif_file: guarddog.sari
+      - run: guarddog npm scan .
