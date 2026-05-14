@@ -64,7 +64,7 @@ jobs:
         id: openai
         shell: bash
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_APIKEY }}
+          OPENAI_APIKEY: ${{ secrets.OPENAI_APIKEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
