@@ -1,0 +1,182 @@
+name: AI PR Description
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  generate-pr-description:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build PR context
+        id: context
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${BASE_REF}" --depth=1
+          git diff --unified=1 "origin/${BASE_REF}...HEAD" > pr.diff || true
+
+          {
+            echo "files<<EOF"
+            git diff --name-status "origin/${BASE_REF}...HEAD" || true
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "commits<<EOF"
+            git log --format='- %s' "origin/${BASE_REF}...HEAD" | head -n 20 || true
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          python3 - <<'PY'
+          import os
+
+          max_bytes = 120000
+          with open("pr.diff", "rb") as f:
+              data = f.read(max_bytes)
+          text = data.decode("utf-8", errors="replace")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("diff<<EOF\n")
+              out.write(text)
+              out.write("\nEOF\n")
+          PY
+
+      - name: Generate PR description with GitHub Models
+        id: ai
+        shell: bash
+        env:
+          GITHUB_MODELS_TOKEN: ${{ secrets.GIT_MODEL_APIKEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          CHANGED_FILES: ${{ steps.context.outputs.files }}
+          COMMITS: ${{ steps.context.outputs.commits }}
+          DIFF: ${{ steps.context.outputs.diff }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          prompt = f"""
+          You are generating a GitHub pull request description from the provided metadata and diff.
+
+          PR metadata:
+          - PR number: {os.environ['PR_NUMBER']}
+          - Title: {os.environ['PR_TITLE']}
+          - Author: {os.environ['PR_AUTHOR']}
+          - Base branch: {os.environ['BASE_REF']}
+          - Head branch: {os.environ['HEAD_REF']}
+
+          Changed files:
+          {os.environ['CHANGED_FILES']}
+
+          Commit messages:
+          {os.environ['COMMITS']}
+
+          Diff excerpt:
+          {os.environ['DIFF']}
+
+          Rules:
+          - Return markdown only.
+          - Be concise and factual.
+          - Do not invent changes not supported by the diff.
+          - Prefer intent and impact over line-by-line detail.
+          - If the evidence is incomplete, say "Based on the diff..." or "Likely...".
+          - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+
+          Output exactly this structure:
+
+          ## Summary
+          - 2 to 4 bullets
+
+          ## Changes
+          - Bullet list of the main changes
+
+          ## Risk
+          One short paragraph with Low, Medium, or High and why.
+
+          ## Testing
+          - Suggested validation steps based on the modified files
+
+          ## Notes
+          - Deployment, rollback, secrets, migrations, monitoring, or follow-up notes
+          - If none, write: - None.
+          """
+
+          body = {
+              "model": "openai/gpt-4.1",
+              "messages": [
+                  {"role": "system", "content": "You write clear and accurate pull request descriptions in markdown."},
+                  {"role": "user", "content": prompt}
+              ],
+              "temperature": 0.2,
+              "max_tokens": 1200
+          }
+
+          with open("github-models-request.json", "w", encoding="utf-8") as f:
+              json.dump(body, f)
+          PY
+
+          curl -sS https://models.github.ai/inference/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${GITHUB_MODELS_TOKEN}" \
+            -d @github-models-request.json \
+            -o github-models-response.json
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          with open("github-models-response.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          text = data["choices"][0]["message"]["content"].strip()
+
+          marker_start = "<!-- ai-pr-description:start -->"
+          marker_end = "<!-- ai-pr-description:end -->"
+
+          final_body = f"""{marker_start}
+          {text}
+          {marker_end}
+          """
+
+          with open("pr_body.md", "w", encoding="utf-8") as f:
+              f.write(final_body)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("body_path=pr_body.md\n")
+          PY
+
+      - name: Update pull request body
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('${{ steps.ai.outputs.body_path }}', 'utf8');
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              body
+            });
