@@ -102,6 +102,8 @@ jobs:
           - Prefer intent and impact over line-by-line detail.
           - If the evidence is incomplete, say "Based on the diff..." or "Likely...".
           - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+          - **Security**: Flag IAM `*:*`, public S3/EC2, service account perms, network exposure, secrets in code. Use **CRITICAL/HIGH/MEDIUM/LOW** labels. If clean: "- None"
+          - **Costs**: Flag potential cost impact from added or changed cloud resources, scaling limits, instance sizes, storage, data transfer, CI/CD runtime, or managed services. Use **Increase/Decrease/No clear change/Unknown**. If evidence is weak, say "Potential increase" or "Cost impact unclear from diff alone".
 
           Output exactly this structure:
 
@@ -114,8 +116,18 @@ jobs:
           ## Risk
           One short paragraph with Low, Medium, or High and why.
 
+          ## Costs
+          One short paragraph stating:
+          - Increase / Decrease / No clear change / Unknown
+          - Why
+          - If possible, mention the likely cost drivers
+
           ## Testing
           - Suggested validation steps based on the modified files
+
+          ## Security
+          - **CRITICAL/HIGH/MEDIUM/LOW**: Specific issues found
+          - Or: - None
 
           ## Notes
           - Deployment, rollback, secrets, migrations, monitoring, or follow-up notes
