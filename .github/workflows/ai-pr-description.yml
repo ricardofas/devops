@@ -23,11 +23,7 @@ jobs:
         id: context
         shell: bash
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
 
@@ -60,13 +56,13 @@ jobs:
               out.write("\nEOF\n")
           PY
 
-      - name: Generate PR description with OpenAI
-        id: openai
+      - name: Generate PR description with GitHub Models
+        id: ai
         shell: bash
         env:
-          GIT_MODEL_APIKEY: ${{ secrets.GIT_MODEL_APIKEY }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          GITHUB_MODELS_TOKEN: ${{ secrets.GIT_MODEL_APIKEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -81,9 +77,9 @@ jobs:
           import os
 
           prompt = f"""
-          You are generating a professional GitHub pull request description.
+          You are generating a GitHub pull request description from the provided metadata and diff.
 
-          Pull request metadata:
+          PR metadata:
           - PR number: {os.environ['PR_NUMBER']}
           - Title: {os.environ['PR_TITLE']}
           - Author: {os.environ['PR_AUTHOR']}
@@ -99,67 +95,69 @@ jobs:
           Diff excerpt:
           {os.environ['DIFF']}
 
-          Instructions:
-          - Write concise, accurate markdown only.
-          - Do not invent changes not supported by the diff or filenames.
-          - Focus on intent and impact, not every line.
-          - If evidence is weak, say "Based on the diff, ..." or "Likely ...".
-          - Prefer DevOps-aware wording when relevant, e.g. workflow, infra, Kubernetes, Helm, Terraform, monitoring.
-          - Output exactly these sections:
+          Rules:
+          - Return markdown only.
+          - Be concise and factual.
+          - Do not invent changes not supported by the diff.
+          - Prefer intent and impact over line-by-line detail.
+          - If the evidence is incomplete, say "Based on the diff..." or "Likely...".
+          - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+
+          Output exactly this structure:
 
           ## Summary
-          2-4 bullets explaining what changed and why.
+          - 2 to 4 bullets
 
           ## Changes
-          Bullet list of the major code/config/doc changes.
+          - Bullet list of the main changes
 
           ## Risk
-          One short paragraph with Low, Medium, or High and a reason.
+          One short paragraph with Low, Medium, or High and why.
 
           ## Testing
-          Bullet list of suggested validation steps based on the changed files.
+          - Suggested validation steps based on the modified files
 
           ## Notes
-          Optional bullets for deployment, rollback, secrets, migrations, observability, or follow-up actions. If none, write "- None."
+          - Deployment, rollback, secrets, migrations, monitoring, or follow-up notes
+          - If none, write: - None.
           """
 
           body = {
-              "model": "gpt-4o",  # or "meta-llama/llama-3.2-90b-instruct", etc.
-              "messages": [{"role": "user", "content": prompt}],
-              "max_tokens": 1500,
-              "temperature": 0.3
+              "model": "openai/gpt-4.1",
+              "messages": [
+                  {"role": "system", "content": "You write clear and accurate pull request descriptions in markdown."},
+                  {"role": "user", "content": prompt}
+              ],
+              "temperature": 0.2,
+              "max_tokens": 1200
           }
 
-          with open("openai-request.json", "w", encoding="utf-8") as f:
+          with open("github-models-request.json", "w", encoding="utf-8") as f:
               json.dump(body, f)
           PY
 
-          curl -sS https://api.openai.com/v1/responses \
+          curl -sS https://models.github.ai/inference/chat/completions \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${GIT_MODEL_APIKEY}" \
-            -d @openai-request.json \
-            -o openai-response.json
+            -H "Authorization: Bearer ${GITHUB_MODELS_TOKEN}" \
+            -d @github-models-request.json \
+            -o github-models-response.json
 
           python3 - <<'PY'
           import json
           import os
-          import sys
 
-          with open("openai-response.json", "r", encoding="utf-8") as f:
+          with open("github-models-response.json", "r", encoding="utf-8") as f:
               data = json.load(f)
 
-          text = data.get("output_text", "").strip()
-
-          if not text:
-              print(json.dumps(data, indent=2))
-              raise SystemExit("No output_text returned from OpenAI API")
+          text = data["choices"][0]["message"]["content"].strip()
 
           marker_start = "<!-- ai-pr-description:start -->"
           marker_end = "<!-- ai-pr-description:end -->"
 
           final_body = f"""{marker_start}
-          {text}
-          {marker_end}"""
+{text}
+{marker_end}
+"""
 
           with open("pr_body.md", "w", encoding="utf-8") as f:
               f.write(final_body)
@@ -174,7 +172,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const body = fs.readFileSync('${{ steps.openai.outputs.body_path }}', 'utf8');
+            const body = fs.readFileSync('${{ steps.ai.outputs.body_path }}', 'utf8');
 
             await github.rest.pulls.update({
               owner: context.repo.owner,
