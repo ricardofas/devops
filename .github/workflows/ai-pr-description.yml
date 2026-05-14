@@ -102,6 +102,8 @@ jobs:
           - Prefer intent and impact over line-by-line detail.
           - If the evidence is incomplete, say "Based on the diff..." or "Likely...".
           - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+          - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+          - **Security**: Flag IAM `*:*`, public S3/EC2, service account perms, network exposure, secrets in code. Use **CRITICAL/HIGH/MEDIUM/LOW** labels. If clean: "- None"
 
           Output exactly this structure:
 
@@ -116,6 +118,10 @@ jobs:
 
           ## Testing
           - Suggested validation steps based on the modified files
+
+          ## Security
+          - **CRITICAL/HIGH/MEDIUM/LOW**: Specific issues found
+          - Or: - None
 
           ## Notes
           - Deployment, rollback, secrets, migrations, monitoring, or follow-up notes
