@@ -102,6 +102,7 @@ jobs:
           - Prefer intent and impact over line-by-line detail.
           - If the evidence is incomplete, say "Based on the diff..." or "Likely...".
           - If infrastructure, CI/CD, Kubernetes, Terraform, Helm, observability, or security files changed, mention operational impact when clearly supported.
+          - **Security**: Flag IAM `*:*`, public S3/EC2, service account perms, network exposure, secrets in code. Use **CRITICAL/HIGH/MEDIUM/LOW** labels. If clean: "- None"
 
           Output exactly this structure:
 
@@ -113,6 +114,13 @@ jobs:
 
           ## Risk
           One short paragraph with Low, Medium, or High and why.
+          ## Security
+          - **CRITICAL**: Full admin S3 access (`s3:*`)
+          - **HIGH**: New cross-account role
+          - **MEDIUM**: Public resource access
+          - **LOW**: Internal read-only changes
+          - None
+          
 
           ## Testing
           - Suggested validation steps based on the modified files
